@@ -9,9 +9,9 @@ export const createAnimal = async (): Promise<THREE.Object3D> => {
 
     loader.load(modelPATH, (gltf) => {
       const fox = gltf.scene;
-        fox.scale.set(0.1, 0.1, 0.1);
-        fox.rotation.set(-0.05, 0, 0);
 
+      fox.scale.set(0.1, 0.1, 0.1);
+      fox.rotation.set(-0.05, 0, 0);
       fox.traverse((node) => {
         if (node instanceof THREE.Mesh) {
           node.castShadow = true;

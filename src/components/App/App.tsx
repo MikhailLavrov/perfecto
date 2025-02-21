@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -32,10 +32,11 @@ const foxBodyParams = {
 
 function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const moveForwardRef = useRef(false);
 
   useEffect(() => {
     if (!mountRef.current) return;
+
+
 
     // === ФИЗИЧЕСКИЙ МИР ===
     const world = new CANNON.World();
@@ -48,7 +49,7 @@ function App() {
 
     // Камера
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 20000);
-      camera.position.set(10, 10, 20);
+      camera.position.set(10, 10, 20); // Начальная позиция камеры
 
     // Рендерер
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -86,20 +87,47 @@ function App() {
     const ambLight = new THREE.AmbientLight(0xffffff, 0.5);
       scene.add(ambLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
       dirLight.position.set(5, 10, 5);
       dirLight.castShadow = true;
       scene.add(dirLight);
+      scene.add(new THREE.AxesHelper(20))
+
+      // === КЛАВИАТУРА ===
+    let objDirection: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
+    let pressedKeys = new Set<any>();
+    
+    let targetRotationY = 0;
+    const updateDirections = () => {
+      let directionX = 0, directionZ = 0;
+
+      if (pressedKeys.has('KeyW') || pressedKeys.has('ArrowUp')) {
+        directionZ += 3;
+        targetRotationY = 0;
+      };
+      if (pressedKeys.has('KeyS') || pressedKeys.has('ArrowDown')) {
+        directionZ -= 3;
+        targetRotationY = -3.1;
+      };
+      if (pressedKeys.has('KeyA') || pressedKeys.has('ArrowLeft')) {
+        directionX += 3;
+        targetRotationY = 1.6;
+      };
+      if (pressedKeys.has('KeyD') || pressedKeys.has('ArrowRight')) {
+        directionX -= 3;
+        targetRotationY = -1.6;
+      };
+
+      objDirection.set(directionX, 0, directionZ)
+    }
 
     document.addEventListener("keydown", (event) => {
-      if (event.code === 'KeyW') { 
-        moveForwardRef.current = true;
-      };
+      pressedKeys.add(event.code);
+      updateDirections()
     });
     document.addEventListener("keyup", (event) => {
-      if (event.code === 'KeyW') { 
-        moveForwardRef.current = false;
-      };
+      if (pressedKeys.delete(event.code))
+      updateDirections()
     });
 
     // === АНИМАЦИЯ ===
@@ -112,12 +140,11 @@ function App() {
       if (fox && foxBody) {
         fox.position.copy(foxBody.position);
         fox.position.y -= 1; // сделал чуть ниже к поверхности
+        
+        fox.rotation.y = THREE.MathUtils.lerp(fox.rotation.y, targetRotationY, 0.1)
 
-        if (moveForwardRef.current) { 
-          const forward = new CANNON.Vec3(0, 0, 3);
-          
-          foxBody.velocity.x = forward.x * 10;
-          foxBody.velocity.z = forward.z * 5;
+        if (objDirection.length() > 0) {
+          foxBody.velocity.set(objDirection.x * 5, objDirection.y * 5, objDirection.z * 5)
         } else {
           foxBody.velocity.x *= 0.9;
           foxBody.velocity.z *= 0.9;
@@ -137,18 +164,13 @@ function App() {
       camera.updateProjectionMatrix();
     };
     window.addEventListener("resize", onResize);
-
-    return () => {
-      mountRef.current?.removeChild(renderer.domElement);
-      window.removeEventListener("resize", onResize);
-    };
   }, []);
 
-  // const [fontSize, setFontSize] = useState(14)
+  const [fontSize, setFontSize] = useState(14)
 
   return (
     <>
-      {/* <div className='text'>
+      <div className='text'>
         <input
           type="range"
           name="sdf"
@@ -157,14 +179,14 @@ function App() {
           value={fontSize}
           onChange={(e) => setFontSize(Number(e.target.value))}
         />
-        <span style={{fontSize: `${fontSize}px`}}>Текст тут, все тут</span>
+        <span style={{fontSize: `${fontSize}px`}}>Текст тsdcdsут, все тут</span>
         <button
           type="reset"
           onClick={() => setFontSize(14)}
         >
           Сбросить
         </button>
-      </div> */}
+      </div>
       <div ref={mountRef} />
     </>
   );

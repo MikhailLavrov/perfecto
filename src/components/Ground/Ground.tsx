@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
-const groundTextureURL = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMZFRtbW9h7xzFwkp8gieRHrDEdVIKVeHOUw&s';
+const groundTextureURL = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSHu2c3n9E-pugiVSZJirRk20BOh_J9KuNhnw&s';
+// const groundTextureURL = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMZFRtbW9h7xzFwkp8gieRHrDEdVIKVeHOUw&s';
 
 export const createGround = () => {
   // Геометрия
