@@ -36,8 +36,6 @@ function App() {
   useEffect(() => {
     if (!mountRef.current) return;
 
-
-
     // === ФИЗИЧЕСКИЙ МИР ===
     const world = new CANNON.World();
       world.gravity.set(0, -9.82, 0); // Гравитация вниз
@@ -63,12 +61,12 @@ function App() {
 
     // === ЗЕМЛЯ ===
     const ground = createGround();
-      scene.add(ground);
+    scene.add(ground);
 
     // === ФИЗИЧЕСКАЯ ЗЕМЛЯ ===
     const groundBody = new CANNON.Body(groundBodyParams);
-      groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Горизонтальная поверхность
-      world.addBody(groundBody);
+    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Горизонтальная поверхность
+    world.addBody(groundBody);
 
     // === ЛИСА (ASYNC) ===
     let fox: THREE.Object3D | null = null;
@@ -85,18 +83,26 @@ function App() {
 
     // === СВЕТ ===
     const ambLight = new THREE.AmbientLight(0xffffff, 0.5);
-      scene.add(ambLight);
+    scene.add(ambLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-      dirLight.position.set(5, 10, 5);
-      dirLight.castShadow = true;
-      scene.add(dirLight);
-      scene.add(new THREE.AxesHelper(20))
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(0, 5, 0);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    dirLight.shadow.mapSize.width = 2048; // качество
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.left = -1000;
+    dirLight.shadow.camera.right = 1000;
+    dirLight.shadow.camera.top = 1000;
+    dirLight.shadow.camera.bottom = -1000;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 100;
 
       // === КЛАВИАТУРА ===
     let objDirection: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
     let pressedKeys = new Set<any>();
-    
+
     let targetRotationY = 0;
     const updateDirections = () => {
       let directionX = 0, directionZ = 0;
@@ -117,6 +123,18 @@ function App() {
         directionX -= 3;
         targetRotationY = -1.6;
       };
+      if (pressedKeys.has('KeyW') && pressedKeys.has('KeyA')) {
+        targetRotationY = 0.7;
+      };
+      if (pressedKeys.has('KeyW') && pressedKeys.has('KeyD')) {
+        targetRotationY = -0.7;
+      };
+      if (pressedKeys.has('KeyS') && pressedKeys.has('KeyD')) {
+        targetRotationY = -2.4;
+      };
+      if (pressedKeys.has('KeyS') && pressedKeys.has('KeyA')) {
+        targetRotationY = 2.4;
+      };
 
       objDirection.set(directionX, 0, directionZ)
     }
@@ -130,7 +148,7 @@ function App() {
       updateDirections()
     });
 
-    // === АНИМАЦИЯ ===
+     // === АНИМАЦИЯ ===
     const animate = () => {
       requestAnimationFrame(animate);
 
@@ -140,7 +158,7 @@ function App() {
       if (fox && foxBody) {
         fox.position.copy(foxBody.position);
         fox.position.y -= 1; // сделал чуть ниже к поверхности
-        
+
         fox.rotation.y = THREE.MathUtils.lerp(fox.rotation.y, targetRotationY, 0.1)
 
         if (objDirection.length() > 0) {
@@ -149,7 +167,7 @@ function App() {
           foxBody.velocity.x *= 0.9;
           foxBody.velocity.z *= 0.9;
         }
-      
+
         controls.target.set(fox.position.x, fox.position.y + 10, fox.position.z - 4);
       }
 
