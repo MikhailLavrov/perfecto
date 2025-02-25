@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -18,18 +18,6 @@ const controlsParams = {
   enablePan: false,
 };
 
-const groundBodyParams = {
-  mass: 0, // 0 = неподвижный объект
-  shape: new CANNON.Plane(),
-  position: new CANNON.Vec3(0, 0, 0),
-};
-
-const foxBodyParams = {
-  mass: 5,
-  shape: new CANNON.Sphere(1), // Можно заменить на Box для лучшей коллизии
-  position: new CANNON.Vec3(0, 2, 0),
-}
-
 function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
 
@@ -43,7 +31,7 @@ function App() {
     // === THREE.JS СЦЕНА ===
     const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x87ceeb);
-      scene.fog = new THREE.FogExp2(0x87ceeb, 0.0007);
+      scene.fog = new THREE.FogExp2(0x87ceeb, 0.003);
 
     // Камера
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 20000);
@@ -60,25 +48,30 @@ function App() {
     Object.assign(controls, controlsParams);
 
     // === ЗЕМЛЯ ===
-    const ground = createGround();
+    const [ground, groundBody] = createGround();
     scene.add(ground);
-
-    // === ФИЗИЧЕСКАЯ ЗЕМЛЯ ===
-    const groundBody = new CANNON.Body(groundBodyParams);
-    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Горизонтальная поверхность
     world.addBody(groundBody);
 
     // === ЛИСА (ASYNC) ===
     let fox: THREE.Object3D | null = null;
     let foxBody: CANNON.Body | null = null;
+    let mixer: THREE.AnimationMixer | null = null;
+    let walkAction: THREE.AnimationAction | null = null;
+    let isWalking: boolean;
 
-    createAnimal().then((loadedFox) => {
+    createAnimal().then(([loadedFox, loadedFoxBody, loadedWalkAction]) => {
       fox = loadedFox;
+      foxBody = loadedFoxBody;
+      if (loadedWalkAction) {
+        walkAction = loadedWalkAction;
+      }
+      if (loadedWalkAction) {
+        mixer = loadedWalkAction.getMixer();
+        loadedWalkAction.play();
+        loadedWalkAction.paused = true;
+      }
       scene.add(fox);
-
-      foxBody = new CANNON.Body(foxBodyParams);
-
-      world.addBody(foxBody);
+      world.addBody(loadedFoxBody);
     });
 
     // === СВЕТ ===
@@ -90,7 +83,7 @@ function App() {
     dirLight.castShadow = true;
     scene.add(dirLight);
 
-    dirLight.shadow.mapSize.width = 2048; // качество
+    dirLight.shadow.mapSize.width = 2048;
     dirLight.shadow.mapSize.height = 2048;
     dirLight.shadow.camera.left = -1000;
     dirLight.shadow.camera.right = 1000;
@@ -103,10 +96,11 @@ function App() {
     let objDirection: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
     let pressedKeys = new Set<any>();
 
-    let targetRotationY = 0;
+    let targetRotationY = 0; // поворот тела
+
     const updateDirections = () => {
       let directionX = 0, directionZ = 0;
-
+      
       if (pressedKeys.has('KeyW') || pressedKeys.has('ArrowUp')) {
         directionZ += 3;
         targetRotationY = 0;
@@ -142,24 +136,44 @@ function App() {
     document.addEventListener("keydown", (event) => {
       pressedKeys.add(event.code);
       updateDirections()
+      isWalking = true;
     });
     document.addEventListener("keyup", (event) => {
       if (pressedKeys.delete(event.code))
       updateDirections()
+      isWalking = false;
     });
 
      // === АНИМАЦИЯ ===
     const animate = () => {
       requestAnimationFrame(animate);
-
+      if (mixer) {
+        mixer.update(0.016); // примерно 60 FPS
+      }
       controls.update();
       world.step(1 / 60); // Обновляем физику
 
       if (fox && foxBody) {
         fox.position.copy(foxBody.position);
-        fox.position.y -= 1; // сделал чуть ниже к поверхности
+        fox.position.y = 0;
 
         fox.rotation.y = THREE.MathUtils.lerp(fox.rotation.y, targetRotationY, 0.1)
+
+        // Включаем анимацию во время движения
+        if (isWalking && walkAction) {
+          walkAction.paused = false;
+        } else if (!isWalking && walkAction) {
+          walkAction.paused = true;
+        }
+// !TODO необходимо для более плавного начала/конца анимации, но initial scale тупит
+        // if (isWalking && walkAction) {
+        //   if (!walkAction.isRunning()) {
+        //     walkAction.reset();
+        //     walkAction.fadeIn(0.3).play(); // Плавный запуск анимации
+        //   }
+        // } else if (!isWalking && walkAction) {
+        //   walkAction.fadeOut(0.5).stop(); // Плавное завершение
+        // }        
 
         if (objDirection.length() > 0) {
           foxBody.velocity.set(objDirection.x * 5, objDirection.y * 5, objDirection.z * 5)
@@ -184,27 +198,8 @@ function App() {
     window.addEventListener("resize", onResize);
   }, []);
 
-  const [fontSize, setFontSize] = useState(14)
-
   return (
     <>
-      <div className='text'>
-        <input
-          type="range"
-          name="sdf"
-          min={10}
-          max={40}
-          value={fontSize}
-          onChange={(e) => setFontSize(Number(e.target.value))}
-        />
-        <span style={{fontSize: `${fontSize}px`}}>Текст тsdcdsут, все тут</span>
-        <button
-          type="reset"
-          onClick={() => setFontSize(14)}
-        >
-          Сбросить
-        </button>
-      </div>
       <div ref={mountRef} />
     </>
   );
