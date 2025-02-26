@@ -5,7 +5,9 @@ const groundTextureURL = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9Gc
 
 export const createGround = (): [THREE.Mesh, CANNON.Body] => {
   // Геометрия
-  const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
+  const geometrySize = 1000;
+  
+  const groundGeometry = new THREE.PlaneGeometry(geometrySize, geometrySize);
     groundGeometry.rotateX(-Math.PI / 2);
   
   // Текстура
