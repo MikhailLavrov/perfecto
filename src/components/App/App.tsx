@@ -4,6 +4,7 @@ import * as CANNON from 'cannon-es';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createAnimal } from '../Animal/Animal';
 import { createGround } from '../Ground/Ground';
+import { onResize } from '../../utils/onResize';
 
 const controlsParams = {
   zoomSpeed: 1.0,
@@ -57,19 +58,26 @@ function App() {
     let foxBody: CANNON.Body | null = null;
     let mixer: THREE.AnimationMixer | null = null;
     let walkAction: THREE.AnimationAction | null = null;
-    let isWalking: boolean;
+    let idleAction: THREE.AnimationAction | null = null;
 
-    createAnimal().then(([loadedFox, loadedFoxBody, loadedWalkAction]) => {
+    createAnimal().then(([loadedFox, loadedFoxBody, loadedWalkAction, loadedIdleAction]) => {
+      // Выносим в глобальную среду
       fox = loadedFox;
       foxBody = loadedFoxBody;
+      if (loadedIdleAction) idleAction = loadedIdleAction;
+      if (loadedWalkAction) walkAction = loadedWalkAction;
+      mixer = loadedWalkAction?.getMixer() || idleAction?.getMixer() || null;
+
+      // !TODO надо подумать. Не нравится что лиса хромает. Сочетаются 2 несовместимых экшена.
+      // if (loadedIdleAction) {
+      //   loadedIdleAction.play()
+      //   loadedIdleAction.paused = true;
+      // }
       if (loadedWalkAction) {
-        walkAction = loadedWalkAction;
-      }
-      if (loadedWalkAction) {
-        mixer = loadedWalkAction.getMixer();
         loadedWalkAction.play();
         loadedWalkAction.paused = true;
       }
+      
       scene.add(fox);
       world.addBody(loadedFoxBody);
     });
@@ -133,23 +141,40 @@ function App() {
       objDirection.set(directionX, 0, directionZ)
     }
 
-    document.addEventListener("keydown", (event) => {
-      pressedKeys.add(event.code);
-      updateDirections()
-      isWalking = true;
-    });
-    document.addEventListener("keyup", (event) => {
-      if (pressedKeys.delete(event.code))
-      updateDirections()
-      isWalking = false;
-    });
+    let timeoutId: any = null;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      pressedKeys.add(e.code);
+      updateDirections();
+      // Включаем анимацию во время движения
+      if (idleAction) idleAction.paused = true;
+      if (walkAction) walkAction.paused = false;
+    };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (pressedKeys.delete(e.code)) updateDirections();
+
+      if (timeoutId) clearTimeout(timeoutId);
+
+      timeoutId = setTimeout(() => {
+        if (pressedKeys.size === 0) {
+          // Выключаем анимацию во время движения с небольшим делеем
+          if (idleAction) idleAction.paused = false;
+          if (walkAction) walkAction.paused = true;
+        }
+      }, 300);
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keyup", onKeyUp);
+        
+    let foxbodySpeed: number = 5;
+    let slowdownSpeed: number = 0.9;
 
      // === АНИМАЦИЯ ===
     const animate = () => {
       requestAnimationFrame(animate);
-      if (mixer) {
-        mixer.update(0.016); // примерно 60 FPS
-      }
+      if (mixer) mixer.update(0.016); // примерно 60 FPS
       controls.update();
       world.step(1 / 60); // Обновляем физику
 
@@ -159,13 +184,7 @@ function App() {
 
         fox.rotation.y = THREE.MathUtils.lerp(fox.rotation.y, targetRotationY, 0.1)
 
-        // Включаем анимацию во время движения
-        if (isWalking && walkAction) {
-          walkAction.paused = false;
-        } else if (!isWalking && walkAction) {
-          walkAction.paused = true;
-        }
-// !TODO необходимо для более плавного начала/конца анимации, но initial scale тупит
+        // !TODO необходимо для более плавного начала/конца анимации, но initial scale тупит
         // if (isWalking && walkAction) {
         //   if (!walkAction.isRunning()) {
         //     walkAction.reset();
@@ -176,10 +195,10 @@ function App() {
         // }        
 
         if (objDirection.length() > 0) {
-          foxBody.velocity.set(objDirection.x * 5, objDirection.y * 5, objDirection.z * 5)
+          foxBody.velocity.set(objDirection.x * foxbodySpeed, objDirection.y * foxbodySpeed, objDirection.z * foxbodySpeed)
         } else {
-          foxBody.velocity.x *= 0.9;
-          foxBody.velocity.z *= 0.9;
+          foxBody.velocity.x *= slowdownSpeed;
+          foxBody.velocity.z *= slowdownSpeed;
         }
 
         controls.target.set(fox.position.x, fox.position.y + 10, fox.position.z - 4);
@@ -190,12 +209,7 @@ function App() {
     animate();
 
     // === ОБРАБОТЧИК РАЗМЕРА ОКНА ===
-    const onResize = () => {
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-    };
-    window.addEventListener("resize", onResize);
+    onResize(renderer, camera);
   }, []);
 
   return (
