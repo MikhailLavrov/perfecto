@@ -35,10 +35,6 @@ function App() {
     const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x87ceeb);
       scene.fog = new THREE.FogExp2(0x87ceeb, 0.006);
-    
-    // === СТАТИСТИКА ===
-    const stats = new Stats();
-    document.body.appendChild(stats.dom);
 
     // === КАМЕРА ===
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 20000);
@@ -48,6 +44,7 @@ function App() {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.shadowMap.enabled = true;
+      // @ts-ignore
       mountRef.current.appendChild(renderer.domElement);
       renderer.outputColorSpace = THREE.SRGBColorSpace;
 
@@ -63,9 +60,11 @@ function App() {
 
     // === ДЕРЕВЬЯ ===
     // !TODO в модели два mesh, соответственно стволы и кроны отдельно при инстансинге
+    // @ts-ignore
     const loader = new GLTFLoader();
     const treesCount: number = 150;
 
+    // @ts-ignore
     loader.load('/models/lowpoly_tree/scene.gltf', (gltf) => {
       let trunk: THREE.Mesh | undefined; // ствол
       let leaves: THREE.Mesh | undefined; // крона
@@ -167,41 +166,41 @@ function App() {
     // === КЛАВИАТУРА ===
     let objDirection: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
     let pressedKeys = new Set<any>();
+    const movementVelocity = 5;
+
+    const keyMappings = {
+      'KeyW': {x: 0, z: movementVelocity, rot: 0},
+      'KeyS': {x: 0, z: -movementVelocity, rot: -3.1},
+      'KeyA': {x: movementVelocity, z: 0, rot: 1.6},
+      'KeyD': {x: -movementVelocity, z: 0, rot: -1.6},
+      'ArrowUp': {x: 0, z: movementVelocity, rot: 0}, // дублирует KeyW
+      'ArrowDown': {x: 0, z: -movementVelocity, rot: -3.1}, // дублирует KeyS
+      'ArrowLeft': {x: movementVelocity, z: 0, rot: 1.6}, // дублирует KeyA
+      'ArrowRight': {x: -movementVelocity, z: 0, rot: -1.6}, // дублирует KeyD
+      'KeyW+KeyA': {rot: 0.7}, // диагональный ротейт
+      'KeyW+KeyD': {rot: -0.7}, // диагональный ротейт
+      'KeyS+KeyA': {rot: 2.4}, // диагональный ротейт
+      'KeyS+KeyD': {rot: -2.4}, // диагональный ротейт
+      'ArrowUp+ArrowLeft': {rot: 0.7}, // дублирует диагональный ротейт
+      'ArrowUp+ArrowRight': {rot: -0.7}, // дублирует диагональный ротейт
+      'ArrowDown+ArrowLeft': {rot: 2.4}, // дублирует диагональный ротейт
+      'ArrowDown+ArrowRight': {rot: -2.4}, // дублирует диагональный ротейт
+    };
 
     let targetRotationY = 0; // поворот тела
 
     const updateDirections = () => {
       let directionX = 0, directionZ = 0;
-      
-      if (pressedKeys.has('KeyW') || pressedKeys.has('ArrowUp')) {
-        directionZ += 3;
-        targetRotationY = 0;
-      };
-      if (pressedKeys.has('KeyS') || pressedKeys.has('ArrowDown')) {
-        directionZ -= 3;
-        targetRotationY = -3.1;
-      };
-      if (pressedKeys.has('KeyA') || pressedKeys.has('ArrowLeft')) {
-        directionX += 3;
-        targetRotationY = 1.6;
-      };
-      if (pressedKeys.has('KeyD') || pressedKeys.has('ArrowRight')) {
-        directionX -= 3;
-        targetRotationY = -1.6;
-      };
-      if (pressedKeys.has('KeyW') && pressedKeys.has('KeyA')) {
-        targetRotationY = 0.7;
-      };
-      if (pressedKeys.has('KeyW') && pressedKeys.has('KeyD')) {
-        targetRotationY = -0.7;
-      };
-      if (pressedKeys.has('KeyS') && pressedKeys.has('KeyD')) {
-        targetRotationY = -2.4;
-      };
-      if (pressedKeys.has('KeyS') && pressedKeys.has('KeyA')) {
-        targetRotationY = 2.4;
-      };
 
+      for (const key in keyMappings) {
+        const keys = key.split('+');
+
+        if (keys.every(k => pressedKeys.has(k))) {
+          directionX += keyMappings[key].x || 0;
+          directionZ += keyMappings[key].z || 0;
+          targetRotationY = keyMappings[key].rot;
+        }
+      }
       objDirection.set(directionX, 0, directionZ)
     }
 
@@ -239,10 +238,9 @@ function App() {
 
     const animate = () => {
       requestAnimationFrame(animate);
-      stats.begin()
       if (mixer) mixer.update(0.016); // примерно 60 FPS
       controls.update();
-      world.step(1 / 60); // Обновляем физику
+      world.step(1 / 120); // Обновляем физику
 
       if (fox && foxBody) {
         fox.position.copy(foxBody.position);
@@ -267,11 +265,11 @@ function App() {
           foxBody.velocity.z *= slowdownSpeed;
         }
 
+        // @ts-ignore
         controls.target.set(fox.position.x, fox.position.y + 10, fox.position.z - 4);
       }
 
       renderer.render(scene, camera);
-      stats.end();
     };
     animate();
 
