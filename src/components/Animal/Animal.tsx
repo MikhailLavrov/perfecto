@@ -1,10 +1,19 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+// import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+export interface Animal {
+  object: THREE.Object3D,
+  body: CANNON.Body,
+  walkAction?: THREE.AnimationAction | undefined,
+  idleAction?: THREE.AnimationAction | undefined,
+}
 
 const modelPATH = '/models/low_poly_fox_by_pixelmannen_animated/scene.gltf';
 
-export const createAnimal = async (): Promise<[THREE.Object3D, CANNON.Body, THREE.AnimationAction?, THREE.AnimationAction?]> => {
+export const createAnimal = async (): Promise<Animal> => {
+// @ts-ignore
   return new Promise((resolve, reject) => {
     const loader = new GLTFLoader();
 
@@ -14,7 +23,7 @@ export const createAnimal = async (): Promise<[THREE.Object3D, CANNON.Body, THRE
       fox.scale.set(0.1, 0.1, 0.1);
       fox.rotation.set(-0.05, 0, 0);
       fox.traverse((node) => {
-        if (node instanceof THREE.Mesh) {
+        if ((node as THREE.Mesh).isMesh) {
           node.castShadow = true;
         }
       });

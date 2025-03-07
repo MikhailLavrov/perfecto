@@ -2,11 +2,10 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createAnimal } from '../Animal/Animal';
+import {Animal, createAnimal} from '../Animal/Animal';
 import { createGround } from '../Ground/Ground';
 import { onResize } from '../../utils/onResize';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import Stats from 'three/examples/jsm/libs/stats.module.js';
 
 const controlsParams = {
   zoomSpeed: 1.0,
@@ -38,7 +37,7 @@ function App() {
 
     // === КАМЕРА ===
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 20000);
-      camera.position.set(10, 10, 20); // Начальная позиция камеры
+      camera.position.set(50, 10, 20); // Начальная позиция камеры
 
     // === РЕНДЕРЕР ===
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -70,6 +69,7 @@ function App() {
       let leaves: THREE.Mesh | undefined; // крона
     
       // Ищем ствол и крону
+      // @ts-ignore
       gltf.scene.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           if (child.name.includes("Object_4")) {
@@ -118,13 +118,13 @@ function App() {
     });    
 
     // === ЛИСА (ASYNC) ===
-    let fox: THREE.Object3D | null = null;
-    let foxBody: CANNON.Body | null = null;
-    let mixer: THREE.AnimationMixer | null = null;
-    let walkAction: THREE.AnimationAction | null = null;
-    let idleAction: THREE.AnimationAction | null = null;
+    let fox: THREE.Object3D;
+    let foxBody: CANNON.Body;
+    let mixer: THREE.AnimationMixer;
+    let walkAction: THREE.AnimationAction;
+    let idleAction: THREE.AnimationAction;
 
-    createAnimal().then(([loadedFox, loadedFoxBody, loadedWalkAction, loadedIdleAction]) => {
+    createAnimal().then(([loadedFox, loadedFoxBody, loadedWalkAction, loadedIdleAction]: Animal) => {
       // Выносим в глобальную среду
       fox = loadedFox;
       foxBody = loadedFoxBody;
@@ -133,10 +133,9 @@ function App() {
       mixer = loadedWalkAction?.getMixer() || idleAction?.getMixer() || null;
 
       // !TODO надо подумать. Не нравится что лиса хромает. Сочетаются 2 несовместимых экшена.
-      // if (loadedIdleAction) {
-      //   loadedIdleAction.play()
-      //   loadedIdleAction.paused = true;
-      // }
+      if (loadedIdleAction) {
+        loadedIdleAction.play()
+      }
       if (loadedWalkAction) {
         loadedWalkAction.play();
         loadedWalkAction.paused = true;
@@ -211,7 +210,7 @@ function App() {
       pressedKeys.add(e.code);
       updateDirections();
       // Включаем анимацию во время движения
-      if (idleAction) idleAction.paused = true;
+      // if (idleAction) idleAction.paused = true;
       if (walkAction) walkAction.paused = false;
     };
 
@@ -238,7 +237,11 @@ function App() {
 
     const animate = () => {
       requestAnimationFrame(animate);
-      if (mixer) mixer.update(0.016); // примерно 60 FPS
+      if (mixer) {
+        mixer.update(0.016); // примерно 60 FPS
+
+        if (walkAction) walkAction.timeScale = 1.5 // Скорочть анимации
+      }
       controls.update();
       world.step(1 / 120); // Обновляем физику
 
@@ -247,16 +250,6 @@ function App() {
         fox.position.y = 0;
 
         fox.rotation.y = THREE.MathUtils.lerp(fox.rotation.y, targetRotationY, 0.1)
-
-        // !TODO необходимо для более плавного начала/конца анимации, но initial scale тупит
-        // if (isWalking && walkAction) {
-        //   if (!walkAction.isRunning()) {
-        //     walkAction.reset();
-        //     walkAction.fadeIn(0.3).play(); // Плавный запуск анимации
-        //   }
-        // } else if (!isWalking && walkAction) {
-        //   walkAction.fadeOut(0.5).stop(); // Плавное завершение
-        // }        
 
         if (objDirection.length() > 0) {
           foxBody.velocity.set(objDirection.x * foxbodySpeed, objDirection.y * foxbodySpeed, objDirection.z * foxbodySpeed)
