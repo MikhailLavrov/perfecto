@@ -1,4 +1,4 @@
-import {useEffect, useRef} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -7,6 +7,7 @@ import {createGround} from '../Ground/Ground';
 import {onResize} from '../../utils/onResize';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import c from './App.module.scss';
 
 const controlsParams = {
   zoomSpeed: 1.0,
@@ -23,6 +24,7 @@ const controlsParams = {
 
 function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const [isGuideOpened, setIsGuideOpened] = useState(true);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -130,7 +132,6 @@ function App() {
       if (loadedWalkAction) walkAction = loadedWalkAction;
       mixer = loadedWalkAction?.getMixer() || idleAction?.getMixer() || null;
 
-      // !TODO надо подумать. Не нравится что лиса хромает. Сочетаются 2 несовместимых экшена.
       if (loadedIdleAction) {
         loadedIdleAction.play()
       }
@@ -269,9 +270,15 @@ function App() {
   }, []);
 
   return (
-    <>
+    <div className={c.mainCover}>
+      <div className={`${c.welcomeGuide} ${!isGuideOpened && c.welcomeGuideNonVisible}`}>
+        <div className={c.welcomeGuide__content}>
+          Use your eyes + arms to navigate with <b>W,A,S,D / &larr;, &uarr;, &rarr;, &darr;</b>
+          <button onClick={() => setIsGuideOpened(false)}>&times;</button>
+        </div>
+      </div>
       <div ref={mountRef}/>
-    </>
+    </div>
   );
 }
 
