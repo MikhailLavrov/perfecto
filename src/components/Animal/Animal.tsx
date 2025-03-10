@@ -10,7 +10,8 @@ export interface Animal {
   idleAction?: THREE.AnimationAction | undefined,
 }
 
-const modelPATH = '/models/low_poly_fox_by_pixelmannen_animated/scene.gltf';
+// @ts-ignore
+const modelPATH = import.meta.env.BASE_URL + 'models/low_poly_fox_by_pixelmannen_animated/scene.gltf';
 
 export const createAnimal = async (): Promise<Animal> => {
 // @ts-ignore
@@ -46,9 +47,9 @@ export const createAnimal = async (): Promise<Animal> => {
         shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)),
         position: new CANNON.Vec3(0, 2, 0),
       });
-
+      // @ts-ignore
       resolve([fox, foxBody, walkAction, idleAction]);
-    }, null, (error) => {
+    }, undefined, (error) => {
       console.error("Ошибка загрузки модели:", error);
       reject(error);
     });

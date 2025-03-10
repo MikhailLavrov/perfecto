@@ -22,6 +22,9 @@ const controlsParams = {
   enablePan: false,
 };
 
+// @ts-ignore
+const modelTreesPATH = import.meta.env.BASE_URL + '/models/leaf_tree/scene.gltf';
+
 function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [isGuideOpened, setIsGuideOpened] = useState(true);
@@ -66,13 +69,13 @@ function App() {
     const treesCount: number = 150;
 
     // @ts-ignore
-    loader.load('/models/leaf_tree/scene.gltf', (gltf) => {
+    loader.load(modelTreesPATH, (gltf) => {
       const treeModel = gltf.scene;
       let geometries: THREE.BufferGeometry[] = [];
       let material: THREE.Material | undefined;
 
       treeModel.traverse((child) => {
-        if (child.isMesh) {
+        if (child instanceof THREE.Mesh) {
           const mesh = child;
           geometries.push(mesh.geometry)
           material = mesh.material
@@ -123,7 +126,7 @@ function App() {
     let mixer: THREE.AnimationMixer;
     let walkAction: THREE.AnimationAction;
     let idleAction: THREE.AnimationAction;
-
+    // @ts-ignore
     createAnimal().then(([loadedFox, loadedFoxBody, loadedWalkAction, loadedIdleAction]: Animal) => {
       // Выносим в глобальную среду
       fox = loadedFox;
@@ -194,8 +197,11 @@ function App() {
         const keys = key.split('+');
 
         if (keys.every(k => pressedKeys.has(k))) {
+          // @ts-ignore
           directionX += keyMappings[key].x || 0;
+          // @ts-ignore
           directionZ += keyMappings[key].z || 0;
+          // @ts-ignore
           targetRotationY = keyMappings[key].rot;
         }
       }
