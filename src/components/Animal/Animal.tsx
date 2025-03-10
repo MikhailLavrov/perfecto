@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 // import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export interface Animal {
   object: THREE.Object3D,
@@ -15,6 +15,7 @@ const modelPATH = '/models/low_poly_fox_by_pixelmannen_animated/scene.gltf';
 export const createAnimal = async (): Promise<Animal> => {
 // @ts-ignore
   return new Promise((resolve, reject) => {
+// @ts-ignore
     const loader = new GLTFLoader();
 
     loader.load(modelPATH, (gltf) => {
@@ -47,7 +48,7 @@ export const createAnimal = async (): Promise<Animal> => {
       });
 
       resolve([fox, foxBody, walkAction, idleAction]);
-    }, undefined, (error) => {
+    }, null, (error) => {
       console.error("Ошибка загрузки модели:", error);
       reject(error);
     });

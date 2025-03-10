@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'react';
+import {useEffect, useRef} from 'react';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {Animal, createAnimal} from '../Animal/Animal';
-import { createGround } from '../Ground/Ground';
-import { onResize } from '../../utils/onResize';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import {createGround} from '../Ground/Ground';
+import {onResize} from '../../utils/onResize';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const controlsParams = {
   zoomSpeed: 1.0,
@@ -28,24 +29,24 @@ function App() {
 
     // === ФИЗИЧЕСКИЙ МИР ===
     const world = new CANNON.World();
-      world.gravity.set(0, -9.82, 0); // Гравитация вниз
+    world.gravity.set(0, -9.82, 0); // Гравитация вниз
 
     // === THREE.JS СЦЕНА ===
     const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x87ceeb);
-      scene.fog = new THREE.FogExp2(0x87ceeb, 0.006);
+    scene.background = new THREE.Color(0x87ceeb);
+    scene.fog = new THREE.FogExp2(0x87ceeb, 0.006);
 
     // === КАМЕРА ===
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 20000);
-      camera.position.set(50, 10, 20); // Начальная позиция камеры
+    camera.position.set(50, 10, 20); // Начальная позиция камеры
 
     // === РЕНДЕРЕР ===
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.shadowMap.enabled = true;
-      // @ts-ignore
-      mountRef.current.appendChild(renderer.domElement);
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
+    const renderer = new THREE.WebGLRenderer({antialias: true});
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    // @ts-ignore
+    mountRef.current.appendChild(renderer.domElement);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     // === КОНТРОЛЫ ===
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -58,64 +59,61 @@ function App() {
     world.addBody(groundBody);
 
     // === ДЕРЕВЬЯ ===
-    // !TODO в модели два mesh, соответственно стволы и кроны отдельно при инстансинге
     // @ts-ignore
     const loader = new GLTFLoader();
     const treesCount: number = 150;
 
     // @ts-ignore
-    loader.load('/models/lowpoly_tree/scene.gltf', (gltf) => {
-      let trunk: THREE.Mesh | undefined; // ствол
-      let leaves: THREE.Mesh | undefined; // крона
-    
-      // Ищем ствол и крону
-      // @ts-ignore
-      gltf.scene.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          if (child.name.includes("Object_4")) {
-            trunk = child as THREE.Mesh;
-          } else if (child.name.includes("Object_5")) {
-            leaves = child as THREE.Mesh;
-          }
+    loader.load('/models/leaf_tree/scene.gltf', (gltf) => {
+      const treeModel = gltf.scene;
+      let geometries: THREE.BufferGeometry[] = [];
+      let material: THREE.Material | undefined;
+
+      treeModel.traverse((child) => {
+        if (child.isMesh) {
+          const mesh = child;
+          geometries.push(mesh.geometry)
+          material = mesh.material
         }
+      })
+
+      // деревья повернули на 90 гр. В положение стоя
+      geometries.forEach((geometry) => {
+        geometry.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
       });
-    
-      if (!trunk || !leaves) return;
-    
-      // инстансы для ствола и кроны
-      const trunkInstance = new THREE.InstancedMesh(trunk.geometry, trunk.material, treesCount);
-      const leavesInstance = new THREE.InstancedMesh(leaves.geometry, leaves.material, treesCount);
-    
-      trunkInstance.castShadow = true;
-      trunkInstance.receiveShadow = true;
-      leavesInstance.castShadow = true;
-      leavesInstance.receiveShadow = true;
-    
+
+      // Объединяем все части в одну геометрию
+      const mergedGeometry = BufferGeometryUtils.mergeGeometries(geometries);
+
+      // инстансы дерева
+      const treeModelInstance = new THREE.InstancedMesh(mergedGeometry, material, treesCount);
+
+      treeModelInstance.castShadow = true;
+      treeModelInstance.receiveShadow = true;
+
       const treeObject = new THREE.Object3D();
-    
+
       for (let i = 0; i < treesCount; i++) {
         treeObject.position.set(
           Math.random() * geometrySize - geometrySize / 2,
           0,
           Math.random() * geometrySize - geometrySize / 2,
         );
-    
+
         treeObject.rotation.y = Math.random() * Math.PI * 2;
-    
-        const scale = 5 + Math.random() * 1.5;
+
+        const scale = 35 + Math.random() * 2.5;
         treeObject.scale.set(scale, scale, scale);
-    
+
         treeObject.updateMatrix();
-    
-        trunkInstance.setMatrixAt(i, treeObject.matrix);
-        leavesInstance.setMatrixAt(i, treeObject.matrix);
+
+        treeModelInstance.setMatrixAt(i, treeObject.matrix);
       }
-    
-      trunkInstance.instanceMatrix.needsUpdate = true;
-      leavesInstance.instanceMatrix.needsUpdate = true;
-    
-      scene.add(trunkInstance, leavesInstance);
-    });    
+
+      treeModelInstance.instanceMatrix.needsUpdate = true;
+
+      scene.add(treeModelInstance);
+    });
 
     // === ЛИСА (ASYNC) ===
     let fox: THREE.Object3D;
@@ -140,7 +138,7 @@ function App() {
         loadedWalkAction.play();
         loadedWalkAction.paused = true;
       }
-      
+
       scene.add(fox);
       world.addBody(loadedFoxBody);
     });
@@ -150,16 +148,16 @@ function App() {
     scene.add(ambLight);
 
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-      dirLight.position.set(0, 5, 0);
-      dirLight.castShadow = true;
-      dirLight.shadow.mapSize.width = 2048;
-      dirLight.shadow.mapSize.height = 2048;
-      dirLight.shadow.camera.left = -1000;
-      dirLight.shadow.camera.right = 1000;
-      dirLight.shadow.camera.top = 1000;
-      dirLight.shadow.camera.bottom = -1000;
-      dirLight.shadow.camera.near = 0.5;
-      dirLight.shadow.camera.far = 100;
+    dirLight.position.set(0, 5, 0);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.left = -1000;
+    dirLight.shadow.camera.right = 1000;
+    dirLight.shadow.camera.top = 1000;
+    dirLight.shadow.camera.bottom = -1000;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 100;
     scene.add(dirLight);
 
     // === КЛАВИАТУРА ===
@@ -230,9 +228,9 @@ function App() {
 
     document.addEventListener("keydown", onKeyDown);
     document.addEventListener("keyup", onKeyUp);
-            
+
     // === АНИМАЦИЯ ===
-    let foxbodySpeed: number = 5;
+    let foxBodySpeed: number = 5;
     let slowdownSpeed: number = 0.9;
 
     const animate = () => {
@@ -252,7 +250,7 @@ function App() {
         fox.rotation.y = THREE.MathUtils.lerp(fox.rotation.y, targetRotationY, 0.1)
 
         if (objDirection.length() > 0) {
-          foxBody.velocity.set(objDirection.x * foxbodySpeed, objDirection.y * foxbodySpeed, objDirection.z * foxbodySpeed)
+          foxBody.velocity.set(objDirection.x * foxBodySpeed, objDirection.y * foxBodySpeed, objDirection.z * foxBodySpeed)
         } else {
           foxBody.velocity.x *= slowdownSpeed;
           foxBody.velocity.z *= slowdownSpeed;
@@ -272,7 +270,7 @@ function App() {
 
   return (
     <>
-      <div ref={mountRef} />
+      <div ref={mountRef}/>
     </>
   );
 }

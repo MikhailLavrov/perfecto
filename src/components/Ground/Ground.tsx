@@ -6,21 +6,21 @@ const groundTextureURL = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9Gc
 export const createGround = (): [THREE.Mesh, CANNON.Body] => {
   // Геометрия
   const geometrySize = 1000;
-  
+
   const groundGeometry = new THREE.PlaneGeometry(geometrySize, geometrySize);
-    groundGeometry.rotateX(-Math.PI / 2);
-  
+  groundGeometry.rotateX(-Math.PI / 2);
+
   // Текстура
   const groundTexture = new THREE.TextureLoader().load(groundTextureURL);
-    groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
-    groundTexture.repeat.set(80, 80);
-  
-  const groundMaterial = new THREE.MeshStandardMaterial({ map: groundTexture });
+  groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
+  groundTexture.repeat.set(80, 80);
+
+  const groundMaterial = new THREE.MeshStandardMaterial({map: groundTexture});
 
   // Mesh (Three.js объект)
   const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.receiveShadow = true;
-    ground.position.set(0, 0, 0);
+  ground.receiveShadow = true;
+  ground.position.set(0, 0, 0);
 
   // Физическое тело (Cannon.js)
   const groundBody = new CANNON.Body({
